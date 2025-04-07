@@ -3,7 +3,7 @@ name = "kvlar"
 version = "0.1.0"
 edition = "2024"
 description = "A minimal file-based key-value store for Rust projects."
-license = "GPLv2"
+license = "BSD 3-Clause"
 repository = "https://github.com/mvghasty/KVLar"
 
 [dependencies]
