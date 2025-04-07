@@ -1,39 +1,54 @@
-use std::collections::HashMap;
-use std::fs::{File, OpenOptions};
-use std::io::{BufReader, Write};
-use serde::{Serialize, Deserialize};
+use serde::{Serialize, de::DeserializeOwned};
+use std::{
+    collections::HashMap,
+    fs::{self, File},
+    io::{Read, Write},
+    path::PathBuf,
+};
 
-#[derive(Serialize, Deserialize, Debug)]
 pub struct KVLar {
-    store: HashMap<String, String>,
+    pub path: PathBuf,
 }
 
 impl KVLar {
-    pub fn new() -> Self {
-        Self {
-            store: HashMap::new(),
+    pub fn new(path: &str) -> Self {
+        let path = PathBuf::from(path);
+
+        // Cria o arquivo JSON vazio se não existir
+        if !path.exists() {
+            let _ = File::create(&path)
+                .and_then(|mut f| f.write_all(b"{}"));
         }
+
+        Self { path }
     }
 
-    pub fn insert(&mut self, key: String, value: String) {
-        self.store.insert(key, value);
+    fn read_all(&self) -> std::io::Result<HashMap<String, serde_json::Value>> {
+        let mut content = String::new();
+        File::open(&self.path)?.read_to_string(&mut content)?;
+        let map: HashMap<String, serde_json::Value> = serde_json::from_str(&content)?;
+        Ok(map)
     }
 
-    pub fn get(&self, key: &str) -> Option<&String> {
-        self.store.get(key)
-    }
-
-    pub fn save(&self, path: &str) -> std::io::Result<()> {
-        let serialized = serde_json::to_string_pretty(&self)?;
-        let mut file = File::create(path)?;
-        file.write_all(serialized.as_bytes())?;
+    fn write_all(&self, map: &HashMap<String, serde_json::Value>) -> std::io::Result<()> {
+        let json = serde_json::to_string_pretty(map)?;
+        fs::write(&self.path, json)?;
         Ok(())
     }
 
-    pub fn load(path: &str) -> std::io::Result<Self> {
-        let file = OpenOptions::new().read(true).open(path)?;
-        let reader = BufReader::new(file);
-        let store: KVLar = serde_json::from_reader(reader)?;
-        Ok(store)
+    pub fn store<T: Serialize>(&self, key: &str, value: &T) -> std::io::Result<()> {
+        let mut map = self.read_all()?;
+        map.insert(key.to_string(), serde_json::to_value(value)?);
+        self.write_all(&map)
+    }
+
+    pub fn get<T: DeserializeOwned>(&self, key: &str) -> std::io::Result<Option<T>> {
+        let map = self.read_all()?;
+        if let Some(val) = map.get(key) {
+            let parsed = serde_json::from_value(val.clone())?;
+            Ok(Some(parsed))
+        } else {
+            Ok(None)
+        }
     }
 }
