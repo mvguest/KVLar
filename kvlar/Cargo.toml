@@ -1,0 +1,11 @@
+[package]
+name = "kvlar"
+version = "0.1.0"
+edition = "2024"
+description = "A minimal file-based key-value store for Rust projects."
+license = "GPLv2"
+repository = "https://github.com/mvghasty/KVLar"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
